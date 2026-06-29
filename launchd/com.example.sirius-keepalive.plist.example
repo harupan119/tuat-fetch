@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  60分ごとに keepalive.mjs を実行（120分のidleタイムアウト前にidleをリセット）。
+  セットアップ: __INSTALL_DIR__ と __HOME__ を絶対パスに置換し、
+  ~/Library/LaunchAgents/ に置いて `launchctl load` する。
+  node のパスは環境に合わせて（Homebrew/Apple Silicon の既定は /opt/homebrew/bin/node）。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.sirius-keepalive</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>__INSTALL_DIR__/keepalive.mjs</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>3600</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>WorkingDirectory</key>
+  <string>__INSTALL_DIR__</string>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/.local/share/sirius-fetch/keepalive.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.local/share/sirius-fetch/keepalive.err.log</string>
+</dict>
+</plist>

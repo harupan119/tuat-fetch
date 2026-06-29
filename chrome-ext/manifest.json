@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "SIRIUS Auto Login",
+  "version": "1.0",
+  "description": "SIRIUS(Extic)のログインを自動化（Keychain連携・TOTP自動生成）",
+  "permissions": [
+    "nativeMessaging",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://tuat.ex-tic.com/*",
+    "https://web.sirius.tuat.ac.jp/*",
+    "https://lms.sirius.tuat.ac.jp/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://tuat.ex-tic.com/auth/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

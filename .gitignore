@@ -1,0 +1,18 @@
+# --- 個人情報・秘密はすべて private/ に隔離して公開しない ---
+private/
+
+# 依存・実行時生成物
+node_modules/
+*.log
+output/
+
+# 拡張の鍵（private/ 外に出ても二重で弾く）
+*.pem
+ext-keys/
+
+# 保存セッション（cookie）。万一ローカルに置かれても弾く
+*_state.json
+state.json
+
+# OS
+.DS_Store

@@ -1,0 +1,9 @@
+{
+  "name": "com.example.sirius_login",
+  "description": "SIRIUS auto-login native messaging host",
+  "path": "__INSTALL_DIR__/chrome-ext/native-host.sh",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://__EXTENSION_ID__/"
+  ]
+}
