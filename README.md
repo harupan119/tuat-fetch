@@ -50,13 +50,19 @@ npx playwright install chromium   # 拡張なし運用なら chromium、Classroo
 ```
 
 ### 2. 認証情報を Keychain に登録
-account は固定で `sirius`、service ごとに値を登録する（入力は伏せ字 `-w`）:
+
+> ⚠️ **このステップは自分の手元のターミナルで自分で実行すること。**
+> パスワード・TOTPシード等の秘密を入力するため、**AIエージェント（Claude/Codex等）や他人に実行させない・貼り付けさせない**。
+> `-w` を値なしで渡すと、伏せ字（非表示）で対話的に入力を求められる（履歴にも残らない）。
+
+account は固定で `sirius`、service ごとに値を登録する:
 ```bash
-security add-generic-password -U -a sirius -s sirius-user  -w   # SSO ログインID（例: s実数字英字）
+security add-generic-password -U -a sirius -s sirius-user  -w   # SSO ログインID（例: s+数字英字）
 security add-generic-password -U -a sirius -s sirius-pass  -w   # SSO パスワード
 security add-generic-password -U -a sirius -s sirius-totp  -w   # TOTP のシード（Base32）※取得方法は下記
 security add-generic-password -U -a sirius -s sirius-gmail -w   # 大学 Google アカウント(メール)
 ```
+各行を実行すると `password:` と表示されるので、対応する値を入力して Enter（入力文字は画面に出ない）。
 
 > **TOTPシードの取得**: TUAT の MFA 設定ページ
 > （[多要素認証(MFA)の設定](https://www.imc.tuat.ac.jp/info-system0/tuat-gateway/setup-mfa.html)）で
