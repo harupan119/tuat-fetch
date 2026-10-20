@@ -1,11 +1,11 @@
 ---
 name: sirius-reminder
-description: "Sakai/Classroomの未提出課題をObsidianデイリーノートの『## 📚 課題』セクションに反映する（締切リマインドのデイリーノート連携）。『課題をデイリーノートに出して』『今日のノートに締切まとめて』『未提出をノートに同期』等で使う。morning/task-sync と同じデイリーノートを共有。実体は ~/Projects/sirius-fetch/reminder-daily.mjs。"
+description: "Sakai/Classroomの未提出課題をObsidianデイリーノートの『## 📚 課題』セクションと Google カレンダーに反映する（締切リマインドの連携）。『課題をデイリーノートに出して』『今日のノートに締切まとめて』『未提出をノートに同期』『課題をカレンダーに入れて』『締切をカレンダー同期』等で使う。実体は ~/Projects/sirius-fetch/{reminder-daily,sync-calendar}.mjs。"
 ---
 
 # 課題リマインド → デイリーノート連携
 
-Sakai/Classroom の未提出課題を、Obsidian デイリーノート `01_Diary/YYYY-MM-DD.md` の **`## 📚 課題`** セクションに冪等反映する。morning / task-sync と同じノート・同じ流儀（セクション単位の冪等更新）。
+Sakai/Classroom の未提出課題を、Obsidian デイリーノート `<SIRIUS_DIARY_DIR>/YYYY-MM-DD.md` の **`## 📚 課題`** セクションに冪等反映する（セクション単位の冪等更新。他の見出しには触らない）。
 
 ## コマンド
 
@@ -21,14 +21,26 @@ node reminder-daily.mjs 2026-06-25 # 日付指定も可
 - 元データ: `~/.local/share/sirius-fetch/output/{assignments-todo.md, classroom-todo.md}`（`sirius-portal` が生成）。
 - `## 📚 課題` セクションを **挿入 or 全置換**（冪等）。配置は `## ⏳ タスク` の直後。
 - 行形式: `- [ ] **課題名**（科目）〆締切 …  ｜Sakai`／`… ｜Classroom [開く](URL)`。
-- **デイリーノートが無ければ何もしない**（morning がノート作成時に本スクリプトを呼ぶ）。
+- **デイリーノートが無ければ何もしない**（ノートを作る側の処理から呼ぶか、fetch-all の定期実行で反映する）。
 - 未提出は毎回上書き（提出済みは次回 fetch で `未提出` から消えるので自然に落ちる）。
 
-## morning系との共有・棲み分け
+## 呼び出し元
 
-- **morning**: デイリーノート作成/更新の最後に `reminder-daily.mjs` を実行 → 作成直後から `## 📚 課題` が埋まる。
-- **task-sync**: Firstseed同期に加え `reminder-daily.mjs` を実行して `## 📚 課題` も最新化（task-sync が触るのは `## ⏳ タスク`/`## 📬 重要メール`、課題は本スキルが `## 📚 課題` を担当するので競合しない）。
-- **fetch-all.sh / launchd**: 定期取得の最後に `reminder-daily.mjs` を実行（当日ノートがあれば自動更新）。
-- セクション分離により Firstseedタスク(📅マーカー, `## ⏳ タスク`)と課題(`## 📚 課題`)は互いに干渉しない。
+- デイリーノートを作る処理（テンプレートやスクリプト）の最後に `node reminder-daily.mjs` を呼ぶと、作成直後から `## 📚 課題` が埋まる。
+- **fetch-all（launchd / タスクスケジューラ）**: 定期取得の最後に `reminder-daily.mjs` を実行（当日ノートがあれば自動更新）。
+- `## 📚 課題` 以外のセクションは書き換えないので、他のツールが同じノートを更新しても干渉しない。
 
-注意: `.md` を手で編集する場合は obsidian 系スキル(obsidian-markdown)に従う。本連携はスクリプトがセクション単位で安全に書き換える。
+デイリーノートの場所は環境変数 `SIRIUS_DIARY_DIR`（既定 `~/Documents/Obsidian/Diary`）。課題扱いしない見出しは `SIRIUS_IGNORE_KEYWORDS`（カンマ区切り。sync-calendar と共通）。
+
+## Google カレンダー同期（sync-calendar.mjs）
+
+未提出課題を Google カレンダーに締切の終日予定として登録する。同期先は環境変数 `SIRIUS_GCAL_ID`（カレンダーの設定 →「カレンダーの統合」の ID。未指定ならメインのカレンダー）。台帳 `~/.local/share/sirius-fetch/calendar-synced.json` で二重登録を防ぐ。
+
+```bash
+node sync-calendar.mjs              # 未同期の課題を一覧表示（登録しない）
+node sync-calendar.mjs --sync       # Google Calendar API で登録（fetch-all が毎回実行）
+node sync-calendar.mjs --json       # 未同期の課題を JSON で出す
+node sync-calendar.mjs --mark KEY   # 同期済みとして台帳に記録
+```
+- 初回だけ: 本人が `node secret.mjs set gcal-client-id` と `gcal-client-secret` を登録し、`node google-auth.mjs` で同意する。同意は同期先カレンダーを所有するアカウントで行う（Chrome のプロファイルは `CHROME_PROFILE` で指定。既定 `Default`）。
+- `invalid_grant` で落ちたら認証切れ。残りは試さず exit 1 になるので、`node google-auth.mjs` で取り直す。

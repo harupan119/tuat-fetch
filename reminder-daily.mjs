@@ -1,8 +1,8 @@
 // reminder-daily.mjs — Sakai/Classroomの未提出課題を Obsidian デイリーノートの
-//   「## 📚 課題」セクションに冪等で反映する（morning/task-sync/sirius-reminder で共有利用）。
+//   「## 📚 課題」セクションに冪等で反映する（sirius-reminder スキル・fetch-all から利用）。
 //   元データ: ~/.local/share/sirius-fetch/output/{assignments-todo.md, classroom-todo.md}
 //     （無ければ assignments.mjs / classroom/fetch.mjs を先に実行しておく）
-//   デイリーノートが無ければ何もしない（morning がノート作成時に本スクリプトを呼ぶ想定）。
+//   デイリーノートが無ければ何もしない（ノートを作る処理から本スクリプトを呼ぶ想定）。
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -45,10 +45,21 @@ const now = new Date().toLocaleTimeString('ja-JP', { hour12: false });
 const body = items.length
   ? items.map((it) => `- [ ] ${it.text}  ｜${it.source}${it.url ? ` [開く](${it.url})` : ''}`).join('\n')
   : '(未提出なし)';
-const section = `${HEAD} (同期済み ${now})\n${body}\n`;
+
+// 出席状況（attend.mjs --list/--history/--notify が書き出すサマリ。当日更新分のみ反映）
+let attBlock = '';
+const attFile = path.join(OUT, 'attendance.md');
+if (fs.existsSync(attFile)) {
+  const mtimeDay = new Date(fs.statSync(attFile).mtimeMs).toLocaleDateString('sv-SE');
+  if (mtimeDay === today) {
+    const attLines = fs.readFileSync(attFile, 'utf8').split('\n').filter((l) => l.startsWith('- '));
+    if (attLines.length) attBlock = `\n### 🪑 出席\n${attLines.join('\n')}`;
+  }
+}
+const section = `${HEAD} (同期済み ${now})\n${body}${attBlock}\n`;
 
 if (!fs.existsSync(note)) {
-  console.log(`デイリーノートが無いのでスキップ: ${today}.md (morning作成後に反映されます)`);
+  console.log(`デイリーノートが無いのでスキップ: ${today}.md (ノート作成後に再実行すると反映されます)`);
   process.exit(0);
 }
 

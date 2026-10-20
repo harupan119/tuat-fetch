@@ -2,10 +2,10 @@
 //   各課題ツール画面の「状態」列をスクレイプ:「提出日時 …」=提出済 / それ以外=未提出。
 //   今学期(最新の YYYY_TT)のサイトを対象に、未提出を締切順に出力＋近い/超過はmacOS通知。
 //   出力: ~/.local/share/sirius-fetch/output/assignments.json と assignments-todo.md
-import { getSession, openSakai, saveState, LMS, DATA_DIR } from './lib.mjs';
+import { getSession, openSakai, saveState, LMS, DATA_DIR, sitesWithAssignments, readAssignmentRows } from './lib.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
+import { notify } from './platform.mjs';
 
 const OUT = path.join(DATA_DIR, 'output');
 const api = (context) => async (p) => { const r = await context.request.get(LMS + p, { headers: { Accept: 'application/json' } }); return r.ok() ? r.json() : null; };
@@ -26,33 +26,14 @@ const curTerm = allSites.map((s) => s.id.slice(0, 7)).sort().reverse()[0];
 const sites = allSites.filter((s) => s.id.startsWith(curTerm));
 console.log(`▶ 今学期 ${curTerm} のサイト ${sites.length}件 を走査`);
 
+// 課題を持つサイトだけに絞る（APIは並列）
+const targets = await sitesWithAssignments(context, sites);
+
 const todo = [];
-for (const site of sites) {
-  // 課題が無いサイトはスキップ（API件数で判定）
-  const a = await j(`/direct/assignment/site/${site.id}.json`);
-  if (!(a?.assignment_collection || []).length) continue;
-
-  // 課題ツールのページURLを取得
-  const pages = await j(`/direct/site/${site.id}/pages.json`);
-  let toolUrl = null;
-  for (const pg of pages || []) for (const t of pg.tools || []) if (/assignment/i.test(t.toolId || '')) { toolUrl = t.url || `${LMS}/portal/site/${site.id}/page/${pg.id}`; break; }
-  if (!toolUrl) continue;
-
-  await page.goto(toolUrl, { waitUntil: 'networkidle' });
-  // メインdoc＋iframe から「状態/締切」を含むテーブルを探して行抽出
-  const rows = await page.evaluate(() => {
-    const grab = (doc) => [...doc.querySelectorAll('table')].flatMap((t) => {
-      const head = [...t.querySelectorAll('tr')].slice(0, 2).map((r) => r.innerText).join(' ');
-      if (!/状態/.test(head) || !/締切/.test(head)) return [];
-      return [...t.querySelectorAll('tbody tr, tr')].map((tr) => [...tr.querySelectorAll('td')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean)).filter((r) => r.length >= 3);
-    });
-    let out = grab(document);
-    for (const f of document.querySelectorAll('iframe')) { try { out = out.concat(grab(f.contentDocument)); } catch {} }
-    return out;
-  });
-
-  for (const r of rows) {
-    const title = r[0], status = r[1], due = parseJST(r[r.length - 1]);
+for (const site of targets) {
+  // 一覧の読み取りは lib.mjs に集約（placementの選び方・待ち方の理由はそちらのコメント参照）
+  for (const r of await readAssignmentRows(page, context, site.id)) {
+    const title = r.cells[0], status = r.cells[1], due = parseJST(r.cells[r.cells.length - 1]);
     if (!title || isSubmitted(status)) continue;       // 提出済は除外
     todo.push({ course: site.title, title, status, due: due ? due.toISOString() : null });
   }
@@ -81,5 +62,5 @@ for (const t of todo) console.log(`  ・${t.title}（${cleanCourse(t.course)}）
 const soon = todo.filter((t) => t.due && Date.parse(t.due) < now + 7 * 864e5);
 if (soon.length) {
   const msg = soon.slice(0, 6).map((t) => `${t.title}(${fmt(t.due)})`).join(', ');
-  execFile('osascript', ['-e', `display notification "${msg.replace(/"/g, "'")}" with title "未提出課題 ${soon.length}件" sound name "Glass"`]);
+  notify({ title: `未提出課題 ${soon.length}件`, message: msg });
 }

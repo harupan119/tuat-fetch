@@ -1,13 +1,17 @@
 // attach.mjs — Classroom課題にローカルファイルを「添付」だけする（提出ボタンは押さない）。
 //   添付はあなたのアカウントにドラフト保存される → 後でリンクを開いて「提出」を押すだけ。
-//   使い方: node classroom/attach.mjs "<課題URL>" "<ファイルパス>"
+//   使い方: node classroom/attach.mjs "<課題URL>" "<ファイルパス>" [--open] [--dry-run] [--force]
+//   添付の前に必ず提出ゲート(gate.mjs)を通す。NG があれば添付しない。
 import { chromium } from 'playwright';
-import { execFile } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+import { runGate, printGate, appendRecord } from './gate.mjs';
+import { openUrl } from '../platform.mjs';
 
 const OPEN = process.argv.includes('--open'); // 添付後、本人のChromeで課題ページを開く
+const DRY = process.argv.includes('--dry-run'); // ゲートの判定だけ行い、添付しない
+const FORCE = process.argv.includes('--force'); // ゲートが NG でも添付する（本人が理由を分かっている時だけ）
 
 const STATE = path.join(os.homedir(), '.local/share/sirius-fetch/classroom_state.json');
 const OUT = path.join(os.homedir(), '.local/share/sirius-fetch/output');
@@ -15,6 +19,13 @@ const url = process.argv[2];
 const file = process.argv[3];
 if (!url || !file) { console.error('使い方: node classroom/attach.mjs "<URL>" "<file>"'); process.exit(1); }
 if (!fs.existsSync(file)) { console.error('ファイルが無い:', file); process.exit(1); }
+
+const gate = await runGate(url, file);
+printGate(gate);
+if (DRY) { console.log('— dry-run: 添付はしていません —'); process.exit(gate.ok ? 0 : 3); }
+if (!gate.ok && !FORCE) process.exit(3);
+if (!gate.ok) console.log('⚠ --force 指定のため NG のまま添付します');
+
 fs.mkdirSync(OUT, { recursive: true });
 const shot = (n) => path.join(OUT, `attach-${n}.png`);
 
@@ -119,8 +130,13 @@ await ctx.storageState({ path: STATE }); // セッション更新（添付ドラ
 await browser.close();
 
 const attached = state.attached.some((t) => /\.pdf|添付ファイル/i.test(t));
+if (attached) {
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
+  const md = appendRecord(file, `${today} ゲート${gate.ok ? '通過' : 'NG(--force)'}・添付済み・本人の「提出」待ち`);
+  if (md) console.log('▶ 記録:', md);
+}
 if (OPEN && attached) {
-  execFile('open', ['-a', 'Google Chrome', url], (e) => e && console.log('  Chrome起動失敗:', e.message));
+  openUrl(url, { chrome: true });
   console.log('▶ あなたのChromeで課題ページを開きました。青い「提出」を押してください。');
 } else if (OPEN) {
   console.log('⚠ 添付が確認できなかったのでChromeは開きません。スクショ(output/attach-4)を確認してください。');

@@ -26,9 +26,8 @@ const AYFILTER = (() => { const i = process.argv.indexOf('--ay'); return i >= 0 
 // 配置ジョブ(履修科目)と回判定ロジックは個人の履修内容に依存するため外部設定に分離。
 //   private/migrate-config.mjs があればそれを、無ければ同梱の migrate-config.example.mjs を使う。
 //   自分用の設定は private/migrate-config.mjs にコピーして編集する（gitignore対象）。
-const here = path.dirname(new URL(import.meta.url).pathname);
 const cfgFile = ['private/migrate-config.mjs', 'migrate-config.example.mjs']
-  .map((p) => path.join(here, p)).find((p) => fs.existsSync(p));
+  .map((p) => path.join(import.meta.dirname, p)).find((p) => fs.existsSync(p));
 const { buildJobs, classify } = await import(pathToFileURL(cfgFile).href);
 const JOBS = buildJobs({ DL, CR });
 
@@ -136,4 +135,12 @@ if (APPLY) {
   console.log(`\n— DRY-RUN —  新規予定 ${nNew} / アーカイブ予定(重複) ${nDup}`);
   console.log(`  実行するには: node migrate.mjs --apply`);
 }
+// JOBS に無いフォルダは黙って取り残されるので、教材が入っていれば知らせる（新しく参加したClassroom等）
+const known = new Set(JOBS.map((j) => j.src));
+const unmapped = [DL, CR].flatMap((root) => fs.existsSync(root)
+  ? fs.readdirSync(root, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => path.join(root, e.name)) : [])
+  .filter((d) => d !== CR && d !== ARCH && !known.has(d))
+  .map((d) => [d, walk(d).filter((f) => !EXCLUDE(path.relative(d, f), path.basename(f))).length])
+  .filter(([, n]) => n > 0);
+if (unmapped.length) { console.log(`\n⚠ JOBS未登録で振り分け対象外のフォルダ (${unmapped.length}件):`); for (const [d, n] of unmapped) console.log(`   - ${path.relative(DL, d)} (${n}件)`); }
 if (flags.length) { console.log(`\n⚠ 回が曖昧で _sirius//_要確認 へ入れる予定 (${flags.length}件):`); for (const x of flags.slice(0, 40)) console.log(`   - ${x}`); }

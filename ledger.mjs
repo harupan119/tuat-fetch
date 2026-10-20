@@ -7,6 +7,7 @@
 //     sakai:<siteId>:<相対パス>     Sakaiリソース
 //     classroom:drive:<fileId>      Classroom Drive添付（fileIdは不変なので理想）
 //     classroom:ext:<URL>           Classroom 外部リンク(Dropbox等)
+//     onedrive:<共有リンクorigin+path> Sakai授業ページ内のOneDrive資料(onedrive.mjs)
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

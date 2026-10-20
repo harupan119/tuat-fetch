@@ -8,7 +8,7 @@ import path from 'node:path';
 const submitUrl = process.argv[2];
 const titleQ = process.argv[3] || '';
 const courseQ = process.argv[4] || '';
-const SCRATCH = process.argv[5] || '/tmp';
+const SCRATCH = process.argv[5] || os.tmpdir();
 
 const { browser, context, page } = await getSession();
 if (!(await openSakai(page))) { console.error('✗ Sakaiに入れません'); await browser.close(); process.exit(1); }

@@ -1,13 +1,8 @@
-// native-host.mjs — Chrome拡張からの要求でKeychainを読み、TOTPを生成して返す。
+// native-host.mjs — Chrome拡張からの要求でOSの資格情報ストア(Keychain/資格情報マネージャー)を読み、TOTPを生成して返す。
 //   秘密は拡張側に一切持たせない。Chromeが allowed_origins の拡張からのみ起動できる。
 //   Native Messaging: stdin=[4byte LE length][JSON], stdout=同形式。1メッセージ応答して終了。
-import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
-
-function kc(service) {
-  try { return execFileSync('security', ['find-generic-password', '-a', 'sirius', '-s', service, '-w'], { encoding: 'utf8' }).trim(); }
-  catch { return null; }
-}
+import { getSecret as kc } from '../platform.mjs';
 
 function genTOTP(secret, t = Date.now()) {
   const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -42,6 +37,6 @@ process.stdin.on('data', (d) => {
   if (buf.length < 4 + len) return;
   const user = kc('sirius-user'), pass = kc('sirius-pass'), totp = kc('sirius-totp');
   if (user && pass && totp) send({ ok: true, user, pass, code: genTOTP(totp) });
-  else send({ ok: false, error: 'keychain entries missing (sirius-user/pass/totp)' });
+  else send({ ok: false, error: 'credential entries missing (sirius-user/pass/totp)' });
   process.exit(0);
 });

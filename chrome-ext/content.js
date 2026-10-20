@@ -10,6 +10,10 @@
   const MAX_ATTEMPTS = 3;
   const KEY = 'sirius_autologin_attempts';
   const attempts = () => +(sessionStorage.getItem(KEY) || 0);
+  const STEP_KEY = 'sirius_autologin_totp_step'; // 最後にTOTPを送った30秒枠
+  const SENT_KEY = 'sirius_autologin_totp_sent'; // TOTP送信時刻（タブ横断の上限用）
+  let warned = false;
+  const warnOnce = (m) => { if (!warned) { warned = true; console.warn('[sirius-autologin] ' + m); } };
 
   let creds = null;
   const getCreds = () => new Promise((res) => chrome.runtime.sendMessage({ action: 'getCreds' }, (r) => res(r || { ok: false, error: 'no response' })));
@@ -23,6 +27,8 @@
 
   const done = new Set();
   let busy = false;
+  const MAX_SEL_CLICKS = 5;
+  let selClicks = 0, selAt = 0;
 
   async function tick() {
     if (busy) return; busy = true;
@@ -50,13 +56,33 @@
         return;
       }
       // ③ 2FA: アプリOTP を選択 → #totp に新コード → 送信
+      //    Exticのハンドラ準備前に押すと空振りするので、#totp が出るまで間隔を空けて押し直す
       const sel = $('#totp-form-selector');
-      if (vis(sel) && !done.has('sel')) { done.add('sel'); sel.click(); await sleep(300); }
+      if (vis(sel) && !vis($('#totp')) && selClicks < MAX_SEL_CLICKS && Date.now() - selAt > 1000) {
+        selClicks++; selAt = Date.now(); sel.click(); await sleep(400);
+      }
       const totp = $('#totp');
       if (vis(totp) && !totp.value && !done.has('totp')) {
+        // Google(SAML)経由だと①を通らないので、TOTP送信でも試行回数を数える
+        if (attempts() >= MAX_ATTEMPTS) { warnOnce('試行上限に達したため停止（手動でログインしてください）'); return; }
+        // 同じ30秒枠のコードは二度送らない（再送は拒否される）。直近10分の送信回数もタブ横断で数える。
+        // 複数タブが同時に判定すると localStorage だけでは競合するので、Web Locks で直列化し、
+        // 書き込みが他タブへ伝わるまで1秒保持してから解放する
+        done.add('totp');
+        const go = await navigator.locks.request('sirius-autologin-totp', async () => {
+          const step = Math.floor(Date.now() / 30000);
+          if (+(localStorage.getItem(STEP_KEY) || 0) >= step) return false; // 次の枠まで待つ（poll / DOM変化で再判定）
+          const recent = JSON.parse(localStorage.getItem(SENT_KEY) || '[]').filter((t) => Date.now() - t < 600000);
+          if (recent.length >= MAX_ATTEMPTS) { warnOnce('直近10分のTOTP送信が上限のため停止（手動でログインしてください）'); return false; }
+          localStorage.setItem(SENT_KEY, JSON.stringify([...recent, Date.now()]));
+          localStorage.setItem(STEP_KEY, step);
+          await sleep(1000);
+          return true;
+        });
+        if (!go) { done.delete('totp'); return; }
         const fresh = await getCreds(); // 直前に現在コードを取得（使い回し回避）
         if (!fresh.ok) return;
-        done.add('totp');
+        sessionStorage.setItem(KEY, attempts() + 1);
         setVal(totp, fresh.code);
         clickSubmit('#totp-form-wrapper');
         return;
@@ -67,4 +93,7 @@
   tick();
   const mo = new MutationObserver(() => tick());
   mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+  // DOM変化が無いまま空振りした場合の再判定用（最大60秒）
+  const poll = setInterval(tick, 1000);
+  setTimeout(() => clearInterval(poll), 60000);
 })();

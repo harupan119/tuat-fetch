@@ -90,7 +90,10 @@ for (const { id } of sites) {
         if (m) { res = await context.request.get(m[1].replace(/&amp;/g, '&'), { timeout: 180000 }); if (res.ok()) body = Buffer.from(await res.body()); }
       }
     } catch (e) { console.log(`  ✗ DL失敗 ${rel} (${e.name || e})`); continue; }
-    if (/text\/html/.test(res.headers()['content-type'] || '') && body.includes(Buffer.from('<!DOCTYPE'))) { console.log(`  ✗ HTML応答(取得失敗) ${rel}`); continue; }
+    // HTML教材（Slidev等の単一HTMLスライド）は、台帳サイズと一致すれば本物とみなす。
+    // それ以外のHTML応答はログイン切れ等のエラーページなのでスキップ。
+    const isHtmlMaterial = (/\.html?$/i.test(rel) || /text\/html/.test(f.type || '')) && body.length === Number(f.size);
+    if (!isHtmlMaterial && /text\/html/.test(res.headers()['content-type'] || '') && body.includes(Buffer.from('<!DOCTYPE'))) { console.log(`  ✗ HTML応答(取得失敗) ${rel}`); continue; }
     await fs.writeFile(dest, body);
     ledger.record(key, { status: 'done', dest, bytes: body.length, source: 'sakai' });
     console.log(`  ✓ ${rel}`);

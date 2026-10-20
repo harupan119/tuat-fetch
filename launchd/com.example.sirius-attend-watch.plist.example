@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.sirius-attend-watch</string>
+
+  <!-- 15分ごとに attend.mjs --notify を実行（受験可能な出席クイズが公開されたらデスクトップ通知）。
+       SIRIUS_WATCH=1 によりスクリプト側で平日8:00-18:30以外は即終了する。
+       通知のみで自動提出は絶対にしない（出席は本人が授業中に実行する）。 -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__INSTALL_DIR__/attend.mjs</string>
+    <string>--notify</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>SIRIUS_WATCH</key>
+    <string>1</string>
+  </dict>
+
+  <key>StartInterval</key>
+  <integer>900</integer>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>WorkingDirectory</key>
+  <string>__INSTALL_DIR__</string>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/.local/share/sirius-fetch/attend-watch.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.local/share/sirius-fetch/attend-watch.err.log</string>
+</dict>
+</plist>

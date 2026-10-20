@@ -4,7 +4,7 @@
   60分ごとに keepalive.mjs を実行（120分のidleタイムアウト前にidleをリセット）。
   セットアップ: __INSTALL_DIR__ と __HOME__ を絶対パスに置換し、
   ~/Library/LaunchAgents/ に置いて `launchctl load` する。
-  node のパスは環境に合わせて（Homebrew/Apple Silicon の既定は /opt/homebrew/bin/node）。
+  __NODE__ は node の絶対パス（`command -v node`）に置換する。
 -->
 <plist version="1.0">
 <dict>
@@ -13,7 +13,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/homebrew/bin/node</string>
+    <string>__NODE__</string>
     <string>__INSTALL_DIR__/keepalive.mjs</string>
   </array>
 

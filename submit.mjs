@@ -6,25 +6,28 @@
 //     node submit.mjs --url "<提出ページURL>" --file "<絶対パス>"
 //   オプション:
 //     --save-only   ドラフト保存だけで終了（提出画面を開いたままにしない / headless）
+//     --dry-run     提出ページURLを特定するだけで終了（添付もドラフト保存もしない。--file 不要）
 //   例:
-//     node submit.mjs --title "第10回課題" --file /path/to/work/10_<学籍番号>.c
-import { launch, openSakai, saveState, LMS } from './lib.mjs';
+//     node submit.mjs --title "第10回課題" --file ~/Projects/TUAT/<科目>/10_work/10_<学籍番号>.c
+import { launch, openSakai, saveState, LMS, assignmentPlacements, assignmentListUrl } from './lib.mjs';
 import fs from 'node:fs';
+import path from 'node:path';
 
 const args = process.argv.slice(2);
-const opt = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
+const opt = (name) => { const i = args.indexOf(name); const v = i >= 0 ? args[i + 1] : null; return v && !v.startsWith('--') ? v : null; };
 const titleQ = opt('--title') || '';
 const courseQ = opt('--course') || '';
 const file = opt('--file');
 let url = opt('--url');
 const saveOnly = args.includes('--save-only');
+const dryRun = args.includes('--dry-run');   // URL特定だけして終了（安全に動作確認するため）
 
-if (!file || !fs.existsSync(file)) { console.error('✗ --file <提出ファイルの絶対パス> が必要（存在しません）'); process.exit(1); }
+if (!dryRun && (!file || !fs.existsSync(file))) { console.error('✗ --file <提出ファイルの絶対パス> が必要（存在しません）'); process.exit(1); }
 if (!url && !titleQ) { console.error('✗ --title か --url のどちらかが必要'); process.exit(1); }
-const base = file.split('/').pop();
+const base = file ? path.basename(file) : '';   // Windows の \ 区切りでも取れるように
 
 // --save-only は headless、それ以外は提出画面を開いたままにするため headed
-const { browser, context, page } = await launch({ headless: saveOnly });
+const { browser, context, page } = await launch({ headless: saveOnly || dryRun });
 if (!(await openSakai(page))) { console.error('✗ Sakaiに入れません（sirius-session で再ログイン）'); await browser.close(); process.exit(1); }
 
 const j = async (p) => { const r = await context.request.get(LMS + p, { headers: { Accept: 'application/json' } }); return r.ok() ? r.json() : null; };
@@ -37,28 +40,31 @@ if (!url) {
   sites = sites.filter((s) => s.id.startsWith(curTerm));
   if (courseQ) sites = sites.filter((s) => s.title.includes(courseQ));
   console.log(`▶ 対象サイト候補: ${sites.map((s) => s.title).join(' / ') || '(なし)'}`);
+  // ⚠️ 課題一覧は必ず assignmentListUrl 経由で開く（理由は lib.mjs のコメント）。
+  //    ページURLだと前回の提出画面が貼り付いたままになり、そこに --title と部分一致する
+  //    リンクがあると別の課題の提出ページに添付してしまう危険がある。
+  outer:
   for (const site of sites) {
-    const pages = await j(`/direct/site/${site.id}/pages.json`);
-    let toolUrl = null;
-    for (const pg of pages || []) for (const t of pg.tools || []) if (/assignment/i.test(t.toolId || '')) { toolUrl = t.url || `${LMS}/portal/site/${site.id}/page/${pg.id}`; break; }
-    if (!toolUrl) continue;
-    await page.goto(toolUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
-    await page.waitForTimeout(4000);
-    let href = null;
-    for (let attempt = 0; attempt < 3 && !href; attempt++) {
-      href = await page.evaluate((q) => {
-        const scan = (doc) => { for (const a of doc.querySelectorAll('a[href]')) { const t = (a.textContent || '').replace(/\s+/g, ' ').trim(); if (q && t.includes(q)) return a.href; } return null; };
-        let h = scan(document);
-        if (!h) for (const f of document.querySelectorAll('iframe')) { try { h = scan(f.contentDocument); if (h) break; } catch {} }
-        return h;
-      }, titleQ).catch(() => null);
-      if (!href) await page.waitForTimeout(2000);
+    for (const tid of await assignmentPlacements(context, site.id)) {
+      await page.goto(assignmentListUrl(tid), { waitUntil: 'domcontentloaded' }).catch(() => {});
+      await page.waitForTimeout(4000);
+      let href = null;
+      for (let attempt = 0; attempt < 3 && !href; attempt++) {
+        href = await page.evaluate((q) => {
+          const scan = (doc) => { for (const a of doc.querySelectorAll('a[href]')) { const t = (a.textContent || '').replace(/\s+/g, ' ').trim(); if (q && t.includes(q)) return a.href; } return null; };
+          let h = scan(document);
+          if (!h) for (const f of document.querySelectorAll('iframe')) { try { h = scan(f.contentDocument); if (h) break; } catch {} }
+          return h;
+        }, titleQ).catch(() => null);
+        if (!href) await page.waitForTimeout(2000);
+      }
+      if (href) { url = href; console.log(`■ サイト: ${site.title}`); break outer; }
     }
-    if (href) { url = href; console.log(`■ サイト: ${site.title}`); break; }
   }
   if (!url) { console.error(`✗ 「${titleQ}」の提出ページが見つかりません`); await browser.close(); process.exit(2); }
 }
 console.log(`▶ 提出ページ: ${url}`);
+if (dryRun) { console.log('▶ --dry-run のため、添付もドラフト保存もせず終了します'); await saveState(context); await browser.close(); process.exit(0); }
 
 const toolFrame = () => page.frames().find((f) => f.url().includes('/tool/')) || page.mainFrame();
 

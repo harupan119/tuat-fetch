@@ -8,13 +8,10 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { getSecret } from './platform.mjs';
 
-// macOS Keychain から認証情報を読む（無ければ null）
-export function keychain(service) {
-  try { return execFileSync('security', ['find-generic-password', '-a', 'sirius', '-s', service, '-w'], { encoding: 'utf8' }).trim(); }
-  catch { return null; }
-}
+// OS の資格情報ストア（macOS Keychain / Windows 資格情報マネージャー）から認証情報を読む（無ければ null）
+export const keychain = getSecret;
 export function creds() {
   return { user: keychain('sirius-user'), pass: keychain('sirius-pass'), totp: keychain('sirius-totp') };
 }
@@ -193,4 +190,70 @@ export async function ensureSession(page) {
   await page.goto(ENTRY + 'portal.do?page=main', { waitUntil: 'domcontentloaded' });
   try { await page.waitForLoadState('networkidle', { timeout: 6000 }); } catch {}
   return isLoggedIn(page) && !isLoginPage(page);
+}
+
+// ── Sakai 課題ツール（assignments / status / submit / find-assignment が共有）─────────
+//
+// ⚠️ ここを迂回して `/portal/site/<siteId>/page/<pageId>` を直接開いてはいけない。
+//    Sakaiのツールは直前の画面状態をサーバ側セッションに保持するため、一度
+//    `sakai_action=doView_submission`（提出画面）を開くと、以後そのページURLでは
+//    課題一覧が描画されない。実測で assignments.mjs が「未提出0件」と誤報告し、
+//    submit.mjs は提出ページを見つけられなくなった。必ず下の2関数を使うこと。
+
+// 課題ツールの placement id を全部返す。1サイトに複数ページへ置かれていることがある
+// （例: 「課題」ページと「アウトライン」ページの2箇所に置く科目がある）。
+export async function assignmentPlacements(context, siteId) {
+  const r = await context.request.get(`${LMS}/direct/site/${siteId}/pages.json`, { headers: { Accept: 'application/json' } });
+  if (!r.ok()) return [];
+  const pages = await r.json().catch(() => null);
+  const out = [];
+  for (const pg of pages || []) for (const t of pg.tools || []) if (/assignment/i.test(t.toolId || '') && t.id) out.push(t.id);
+  return out;
+}
+
+// 課題一覧を必ず「一覧」状態で開くURL（貼り付いた画面状態をリセットする副作用もある）。
+export const assignmentListUrl = (placementId) => `${LMS}/portal/tool/${placementId}?panel=Main&sakai_action=doList_assignments`;
+
+// 今学期のサイトのうち課題を持つものだけ返す。11サイト分のAPIを並列で叩く（逐次だと約1.5秒）。
+export async function sitesWithAssignments(context, sites) {
+  const hit = await Promise.all(sites.map(async (s) => {
+    const r = await context.request.get(`${LMS}/direct/assignment/site/${s.id}.json`, { headers: { Accept: 'application/json' } });
+    if (!r.ok()) return null;
+    const a = await r.json().catch(() => null);
+    return (a?.assignment_collection || []).length ? s : null;
+  }));
+  return hit.filter(Boolean);
+}
+
+// 課題一覧テーブルの行を読む。戻り値は [{ cells: string[], href: string|null }]。
+// cells は 4列 = タイトル|状態|開始日時|締切日時 / 3列 = タイトル|状態|締切日時。
+//
+// 速度について: 同一サイトの複数placementは同じ課題一覧を返すので、行が取れた時点で打ち切る
+// （実測4サイト8placementのうち半分が無駄打ちで約5.7秒）。また networkidle と固定sleepで
+// 待つのをやめ、スクレイプ自体が2ms程度で済むことを利用して取れるまでポーリングする。
+export async function readAssignmentRows(page, context, siteId, { timeoutMs = 8000 } = {}) {
+  const scrape = () => {
+    const grab = (doc) => [...doc.querySelectorAll('table')].flatMap((t) => {
+      const head = [...t.querySelectorAll('tr')].slice(0, 2).map((r) => r.innerText).join(' ');
+      if (!/状態/.test(head) || !/締切/.test(head)) return [];
+      return [...t.querySelectorAll('tbody tr, tr')].map((tr) => {
+        const cells = [...tr.querySelectorAll('td')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean);
+        const link = tr.querySelector('a[href]');
+        return { cells, href: link ? link.href : null };
+      }).filter((r) => r.cells.length >= 3);
+    });
+    let out = grab(document);
+    for (const f of document.querySelectorAll('iframe')) { try { out = out.concat(grab(f.contentDocument)); } catch {} }
+    return out;
+  };
+  for (const tid of await assignmentPlacements(context, siteId)) {
+    await page.goto(assignmentListUrl(tid), { waitUntil: 'domcontentloaded' }).catch(() => {});
+    const deadline = Date.now() + timeoutMs;
+    do {
+      const rows = await page.evaluate(scrape).catch(() => []);
+      if (rows.length) return rows;
+      await page.waitForTimeout(150);
+    } while (Date.now() < deadline);
+  }
+  return [];   // 課題ツールが無い/空、またはタイムアウト
 }
