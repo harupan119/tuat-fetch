@@ -23,7 +23,7 @@ description: "東京農工大(TUAT/SIRIUS)の時間割・休講補講・お知�
    新規 → ~/Documents/TUAT/<年度学期>/<科目>/<講義回>/（正本）
    既存重複+メタ → ~/Downloads/sirius-materials/_アーカイブ/<学期>/
    → 直下クリーン
-⑥連携: デイリーノート・Google カレンダー (sirius-reminder)
+⑥連携: リマインドファイル(.md/.txt)・Google カレンダー (sirius-reminder)
 
 ⑦操作（取得とは独立した別アクション。最終ボタンはどれも本人）
    提出: Sakai → sirius-submit ／ Classroom → classroom-submit
@@ -43,7 +43,7 @@ description: "東京農工大(TUAT/SIRIUS)の時間割・休講補講・お知�
 | Classroom 投稿のGoogleフォームを探す・中身を見る・入力する | `classroom-forms` |
 | 講義PDF末尾の感想フォームに感想を送る | `lecture-feedback-form` |
 | 取得物をTUATへ振り分け/学期アーカイブ | `tuat-organize` |
-| 未提出課題をデイリーノート・Google カレンダーに反映 | `sirius-reminder` |
+| 未提出課題をリマインドファイル（.md/.txt）・Google カレンダーに書き出す | `sirius-reminder` |
 | 課題を提出したか確認する（提出日時・添付まで） | `sirius-submit`（`node status.mjs`） |
 | Sakai(LMS)課題を提出（添付＋ドラフト保存・提出は本人） | `sirius-submit` |
 | Classroom課題を提出（添付自動・提出は本人） | `classroom-submit` |

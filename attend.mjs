@@ -102,7 +102,7 @@ for (const site of sites) {
   }
 }
 
-// ── 出席状況サマリを書き出し（reminder-daily.mjs がデイリーノートに反映する） ──
+// ── 出席状況サマリを書き出し（reminder-daily.mjs がリマインドファイルに反映する） ──
 const OUT_DIR = path.join(DATA_DIR, 'output');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 {

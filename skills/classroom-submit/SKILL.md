@@ -25,7 +25,7 @@ node classroom/inspect-submit.mjs "<課題URL>"
 # 添付＋本人のChromeで開く（提出は押さない）
 node classroom/attach.mjs "<課題URL>" "<提出ファイルの絶対パス>" --open
 ```
-- 課題URLは `sirius-portal`/`classroom-fetch` の未提出todo（`output/classroom-todo.md`）やデイリーノート `## 📚 課題` の「開く」リンクから取得。
+- 課題URLは `sirius-portal`/`classroom-fetch` の未提出todo（`output/classroom-todo.md`）やリマインドファイル（`sirius-reminder`）の「開く」リンクから取得。
 - `--open` を付けると添付確認後に本人の Chrome で課題ページを表示（macOS は `open -a "Google Chrome"`、Windows は `chrome.exe` を直接起動。`platform.mjs` の `openUrl()`）。あなたは提出を押すだけ。
 - 課題説明文の取得（提出ゲート）は Classroom API を使うので、`node classroom/auth.mjs` 済みであること。
 

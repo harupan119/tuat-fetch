@@ -24,7 +24,7 @@ const STEPS = [
   { script: 'assignments.mjs' },
   { script: 'classroom/fetch.mjs', classroom: true },
   { script: 'messages.mjs', optIn: 'SIRIUS_ENABLE_MESSAGES' }, // Sakaiメッセージの新着 → 科目フォルダ/_メッセージ と通知（任意）
-  { script: 'reminder-daily.mjs' },                 // 当日のデイリーノートがあれば課題セクション更新
+  { script: 'reminder-daily.mjs' },                 // 当日のリマインドファイル（.md/.txt）を作成・更新
   { script: 'sync-calendar.mjs', args: ['--sync'] }, // Google Calendar に課題を同期（失敗理由をログに残すためstderrは捨てない）
 ];
 

@@ -43,9 +43,9 @@ node attend.mjs --choice 1 --go         # 選択式で1番目の選択肢を選�
 - macOS: `launchd/com.example.sirius-attend-watch.plist.example` のパスを置換して `~/Library/LaunchAgents/` に置き、ロード（README の手順）。
 - Windows: `windows\install-tasks.ps1` がタスク `sirius-fetch-attend-watch` を登録（`SIRIUS_WATCH=1` 付き）。
 
-## デイリーノート連携
+## リマインド連携
 
-`--list/--history/--notify` 実行時に `~/.local/share/sirius-fetch/output/attendance.md` へサマリを書き出し、`reminder-daily.mjs`（sirius-reminder）が当日更新分を「## 📚 課題」内の「### 🪑 出席」に反映する。
+`--list/--history/--notify` 実行時に `~/.local/share/sirius-fetch/output/attendance.md` へサマリを書き出し、`reminder-daily.mjs`（sirius-reminder）が当日更新分をリマインドファイルの課題の節（md は「### 🪑 出席」）に反映する。
 
 - `--title "第13回"` … 同一科目に複数候補があるときの絞り込み
 - `--all` … 今日の曜日以外の科目も候補に含める（既定は今日の曜日を優先、無ければ自動で全科目）

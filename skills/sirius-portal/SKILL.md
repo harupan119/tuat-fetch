@@ -69,6 +69,6 @@ node messages.mjs --watch           # 英語の授業時間帯（開始15分前�
 **この構造自体は残る**ので、課題一覧を読む新しいコードでは `lib.mjs` の `assignmentPlacements()` / `assignmentListUrl()` を使う。ページURLを自分で組み立てない。同じ欠陥が `submit.mjs` / `find-assignment.mjs` にもあり、こちらも同時に修正済み（詳細は `sirius-submit`）。
 - **Classroom未提出**: Classroom API（`classroom/api.mjs`。2026-08-11 にスクレイプから移行）で courseWork と自分の提出状態（TURNED_IN/RETURNED 以外）を突き合わせる。exit 1=未認証、exit 2=認証切れ → `node classroom/auth.mjs`。
 
-## デイリーノート連携（実装済）
+## リマインド連携（実装済）
 
-`output/assignments-todo.md` / `classroom-todo.md` を Obsidian デイリーノート `<SIRIUS_DIARY_DIR>/YYYY-MM-DD.md` の **`## 📚 課題`** セクションへ反映する `reminder-daily.mjs` がある（`node reminder-daily.mjs`）。fetch-all から実行。詳細は **`sirius-reminder`** スキル。
+`output/assignments-todo.md` / `classroom-todo.md` を日付ごとのリマインドファイル（`.md` / `.txt`）に書き出す `reminder-daily.mjs` がある（`node reminder-daily.mjs`）。fetch-all から実行。詳細は **`sirius-reminder`** スキル。

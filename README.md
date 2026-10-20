@@ -9,7 +9,7 @@
   （macOS は Keychain、Windows は資格情報マネージャー）
 - セッションは `keepalive` で延命、切れたら自動再ログイン
 - Classroom の取得は **Classroom API / Drive API**（読み取り専用スコープ）
-- 取得結果は Obsidian のデイリーノート・Google カレンダーにも連携可能
+- 未提出課題を日付ごとのリマインドファイル（.md / .txt）と Google カレンダーにも書き出せる
 - 付属の Chrome 拡張でブラウザ操作中の自動ログインも可能
 - Claude Code / Codex 用のスキル（`skills/`）同梱
 
@@ -18,7 +18,7 @@
 > - 鍵・実 plist・履修科目の整理ルールなどの個人物は gitignore された `private/` フォルダに隔離。
 > - 学籍番号・ログインIDはスキル内で `<学籍番号>` `<ログインID>` のプレースホルダ。
 > - 履修科目・整理ルールは `private/migrate-config.mjs`（非公開）に分離し、公開側は架空サンプル `migrate-config.example.mjs` のみ。
-> - Obsidian のパス・同期先カレンダー・入学年度などは環境変数で指定（下記）。
+> - リマインドの出力先・同期先カレンダー・入学年度などは環境変数で指定（下記）。
 
 ---
 
@@ -34,7 +34,7 @@
 | 取得 | 未提出課題（Sakai / Classroom）とデスクトップ通知 | `assignments.mjs` / `classroom/fetch.mjs` |
 | 取得（任意・既定オフ） | Sakai メッセージの新着と通知（メッセージ機能で連絡する科目がある人向け） | `messages.mjs` |
 | 整理 | 取得物を年度・学期・科目・講義回のフォルダへ振り分け | `migrate.mjs` |
-| 連携 | Obsidian デイリーノート / Google カレンダー | `reminder-daily.mjs` / `sync-calendar.mjs` |
+| 連携 | 日付ごとのリマインドファイル（.md / .txt）/ Google カレンダー | `reminder-daily.mjs` / `sync-calendar.mjs` |
 | 操作 | Sakai 課題の提出（添付＋ドラフト保存まで）・提出状況の確認 | `submit.mjs` / `status.mjs` |
 | 操作 | Classroom 課題への添付（提出前の検査つき） | `classroom/attach.mjs` |
 | 操作 | 出席クイズを開く・コード入力（既定は提出を本人が押す） | `attend.mjs` |
@@ -186,7 +186,9 @@ Windows のタスクは「ユーザーがログオンしているときのみ実
 
 | 変数 | 用途 | 既定 |
 |---|---|---|
-| `SIRIUS_DIARY_DIR` | デイリーノートの格納先（`reminder-daily.mjs`） | `~/Documents/Obsidian/Diary` |
+| `SIRIUS_REMINDER_DIR` | リマインドファイルの出力先（`reminder-daily.mjs`） | `~/Documents/TUAT/_リマインド` |
+| `SIRIUS_REMINDER_FORMAT` | リマインドファイルの形式 `md` / `txt` | `md` |
+| `SIRIUS_REMINDER_AFTER` | 既存のファイルに課題の節を入れる位置（この見出しの節の直後） | ファイルの末尾 |
 | `SIRIUS_IGNORE_KEYWORDS` | 課題扱いしない見出し（カンマ区切り） | なし |
 | `SIRIUS_GCAL_ID` | 課題を同期する Google カレンダーの ID | `primary` |
 | `SIRIUS_ENTRANCE_YEAR` | 入学年度（科目フォルダ `TUAT_<学年>_<学期>` の学年を決める） | 今年 |
