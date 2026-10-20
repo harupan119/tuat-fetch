@@ -50,6 +50,8 @@ description: "東京農工大(TUAT/SIRIUS)の時間割・休講補講・お知�
 | 授業の出席を登録（出席クイズを開く・提出は本人） | `sirius-attend` |
 | 履修登録（時間割コードで登録・「登録完了」は本人） | `sirius-register` |
 
+レポートの作成・PDF 化は別リポジトリ [tuat-report-kit](https://github.com/harupan119/tuat-report-kit) のスキル（`tuat-report` / `tuat-report-pdf`）。取得パイプラインとは別系統。
+
 
 ## ワンショット実行（全部まとめて）
 

@@ -238,6 +238,10 @@ macOS は symlink、Windows はジャンクション（管理者権限・開発�
 
 ---
 
+## 関連リポジトリ
+
+- [tuat-report-kit](https://github.com/harupan119/tuat-report-kit) — 演習・実験レポートを設計図（spec）→ 執筆 → 機械検査 → PDF の順で作るスキル集（`tuat-report` / `tuat-report-pdf`）。取得した教材・課題PDFを入力に使える。
+
 ## セキュリティ方針
 
 - 認証情報はコード・リポジトリに置かない（実行時に Keychain / 資格情報マネージャーから取得）。
